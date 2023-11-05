@@ -109,7 +109,8 @@ const UPGRADE_RESPONSE_SENTINEL = fromInnerResponse(
 
 function upgradeHttpRaw(req, conn) {
   const inner = toInnerRequest(req);
-  if (inner._wantsUpgrade) {
+  if (inner._wantsUpgrade)
+  {
     return inner._wantsUpgrade("upgradeHttpRaw", conn);
   }
   throw new TypeError("upgradeHttpRaw may only be used with Deno.serve");
@@ -129,7 +130,7 @@ class InnerRequest {
   #upgraded;
   #urlValue;
 
-  constructor(slabId, context) {
+  constructor (slabId, context) {
     this.#slabId = slabId;
     this.#context = context;
     this.#upgraded = false;
@@ -144,21 +145,25 @@ class InnerRequest {
   }
 
   _wantsUpgrade(upgradeType, ...originalArgs) {
-    if (this.#upgraded) {
+    if (this.#upgraded)
+    {
       throw new Deno.errors.Http("already upgraded");
     }
-    if (this.#slabId === undefined) {
+    if (this.#slabId === undefined)
+    {
       throw new Deno.errors.Http("already closed");
     }
 
     // upgradeHttp is async
     // TODO(mmastrac)
-    if (upgradeType == "upgradeHttp") {
+    if (upgradeType == "upgradeHttp")
+    {
       throw "upgradeHttp is unavailable in Deno.serve at this time";
     }
 
     // upgradeHttpRaw is sync
-    if (upgradeType == "upgradeHttpRaw") {
+    if (upgradeType == "upgradeHttpRaw")
+    {
       const slabId = this.#slabId;
       const underlyingConn = originalArgs[0];
 
@@ -166,7 +171,7 @@ class InnerRequest {
       this.headerList;
       this.close();
 
-      this.#upgraded = () => {};
+      this.#upgraded = () => { };
 
       const upgradeRid = op_http_upgrade_raw(slabId);
 
@@ -180,7 +185,8 @@ class InnerRequest {
     }
 
     // upgradeWebSocket is sync
-    if (upgradeType == "upgradeWebSocket") {
+    if (upgradeType == "upgradeWebSocket")
+    {
       const response = originalArgs[0];
       const ws = originalArgs[1];
 
@@ -197,7 +203,8 @@ class InnerRequest {
 
       // Start the upgrade in the background.
       (async () => {
-        try {
+        try
+        {
           // Returns the upgraded websocket connection
           const wsRid = await op_http_upgrade_websocket_next(
             slabId,
@@ -214,14 +221,16 @@ class InnerRequest {
           ws.dispatchEvent(event);
 
           ws[_eventLoop]();
-          if (ws[_idleTimeoutDuration]) {
+          if (ws[_idleTimeoutDuration])
+          {
             ws.addEventListener(
               "close",
               () => clearTimeout(ws[_idleTimeoutTimeout]),
             );
           }
           ws[_serverHandleIdleTimeout]();
-        } catch (error) {
+        } catch (error)
+        {
           const event = new ErrorEvent("error", { error });
           ws.dispatchEvent(event);
         }
@@ -231,12 +240,15 @@ class InnerRequest {
   }
 
   url() {
-    if (this.#urlValue !== undefined) {
+    if (this.#urlValue !== undefined)
+    {
       return this.#urlValue;
     }
 
-    if (this.#methodAndUri === undefined) {
-      if (this.#slabId === undefined) {
+    if (this.#methodAndUri === undefined)
+    {
+      if (this.#slabId === undefined)
+      {
         throw new TypeError("request closed");
       }
       // TODO(mmastrac): This is quite slow as we're serializing a large number of values. We may want to consider
@@ -247,22 +259,26 @@ class InnerRequest {
     const path = this.#methodAndUri[2];
 
     // * is valid for OPTIONS
-    if (path === "*") {
+    if (path === "*")
+    {
       return this.#urlValue = "*";
     }
 
     // If the path is empty, return the authority (valid for CONNECT)
-    if (path == "") {
+    if (path == "")
+    {
       return this.#urlValue = this.#methodAndUri[1];
     }
 
     // CONNECT requires an authority
-    if (this.#methodAndUri[0] == "CONNECT") {
+    if (this.#methodAndUri[0] == "CONNECT")
+    {
       return this.#urlValue = this.#methodAndUri[1];
     }
 
     const hostname = this.#methodAndUri[1];
-    if (hostname) {
+    if (hostname)
+    {
       // Construct a URL from the scheme, the hostname, and the path
       return this.#urlValue = this.#context.scheme + hostname + path;
     }
@@ -274,14 +290,17 @@ class InnerRequest {
 
   get remoteAddr() {
     const transport = this.#context.listener?.addr.transport;
-    if (transport === "unix" || transport === "unixpacket") {
+    if (transport === "unix" || transport === "unixpacket")
+    {
       return {
         transport,
         path: this.#context.listener.addr.path,
       };
     }
-    if (this.#methodAndUri === undefined) {
-      if (this.#slabId === undefined) {
+    if (this.#methodAndUri === undefined)
+    {
+      if (this.#slabId === undefined)
+      {
         throw new TypeError("request closed");
       }
       this.#methodAndUri = op_http_get_request_method_and_url(this.#slabId);
@@ -294,8 +313,10 @@ class InnerRequest {
   }
 
   get method() {
-    if (this.#methodAndUri === undefined) {
-      if (this.#slabId === undefined) {
+    if (this.#methodAndUri === undefined)
+    {
+      if (this.#slabId === undefined)
+      {
         throw new TypeError("request closed");
       }
       this.#methodAndUri = op_http_get_request_method_and_url(this.#slabId);
@@ -304,15 +325,18 @@ class InnerRequest {
   }
 
   get body() {
-    if (this.#slabId === undefined) {
+    if (this.#slabId === undefined)
+    {
       throw new TypeError("request closed");
     }
-    if (this.#body !== undefined) {
+    if (this.#body !== undefined)
+    {
       return this.#body;
     }
     // If the method is GET or HEAD, we do not want to include a body here, even if the Rust
     // side of the code is willing to provide it to us.
-    if (this.method == "GET" || this.method == "HEAD") {
+    if (this.method == "GET" || this.method == "HEAD")
+    {
       this.#body = null;
       return null;
     }
@@ -322,12 +346,14 @@ class InnerRequest {
   }
 
   get headerList() {
-    if (this.#slabId === undefined) {
+    if (this.#slabId === undefined)
+    {
       throw new TypeError("request closed");
     }
     const headers = [];
     const reqHeaders = op_http_get_request_headers(this.#slabId);
-    for (let i = 0; i < reqHeaders.length; i += 2) {
+    for (let i = 0; i < reqHeaders.length; i += 2)
+    {
       ArrayPrototypePush(headers, [reqHeaders[i], reqHeaders[i + 1]]);
     }
     return headers;
@@ -348,7 +374,7 @@ class CallbackContext {
   closing;
   listener;
 
-  constructor(signal, args, listener) {
+  constructor (signal, args, listener) {
     // The abort signal triggers a non-graceful shutdown
     signal?.addEventListener(
       "abort",
@@ -366,7 +392,8 @@ class CallbackContext {
   }
 
   close() {
-    try {
+    try
+    {
       this.closed = true;
       core.tryClose(this.serverRid);
     } catch {
@@ -377,7 +404,7 @@ class CallbackContext {
 
 class ServeHandlerInfo {
   #inner = null;
-  constructor(inner) {
+  constructor (inner) {
     this.#inner = inner;
   }
   get remoteAddr() {
@@ -386,7 +413,8 @@ class ServeHandlerInfo {
 }
 
 function fastSyncResponseOrStream(req, respBody, status) {
-  if (respBody === null || respBody === undefined) {
+  if (respBody === null || respBody === undefined)
+  {
     // Don't set the body
     op_http_set_promise_complete(req, status);
     return;
@@ -395,29 +423,34 @@ function fastSyncResponseOrStream(req, respBody, status) {
   const stream = respBody.streamOrStatic;
   const body = stream.body;
 
-  if (ObjectPrototypeIsPrototypeOf(Uint8ArrayPrototype, body)) {
+  if (ObjectPrototypeIsPrototypeOf(Uint8ArrayPrototype, body))
+  {
     op_http_set_response_body_bytes(req, body, status);
     return;
   }
 
-  if (typeof body === "string") {
+  if (typeof body === "string")
+  {
     op_http_set_response_body_text(req, body, status);
     return;
   }
 
   // At this point in the response it needs to be a stream
-  if (!ObjectPrototypeIsPrototypeOf(ReadableStreamPrototype, stream)) {
+  if (!ObjectPrototypeIsPrototypeOf(ReadableStreamPrototype, stream))
+  {
     throw TypeError("invalid response");
   }
   const resourceBacking = getReadableStreamResourceBacking(stream);
-  if (resourceBacking) {
+  if (resourceBacking)
+  {
     op_http_set_response_body_resource(
       req,
       resourceBacking.rid,
       resourceBacking.autoClose,
       status,
     );
-  } else {
+  } else
+  {
     const rid = resourceForReadableStream(stream);
     op_http_set_response_body_resource(
       req,
@@ -443,25 +476,32 @@ function mapToCallback(context, callback, onError) {
     // 500 error.
     let innerRequest;
     let response;
-    try {
+    try
+    {
       innerRequest = new InnerRequest(req, context);
       response = await callback(
         fromInnerRequest(innerRequest, signal, "immutable"),
         new ServeHandlerInfo(innerRequest),
       );
-    } catch (error) {
-      try {
+      response ??= new Response();
+    } catch (error)
+    {
+      try
+      {
         response = await onError(error);
-      } catch (error) {
+      } catch (error)
+      {
         console.error("Exception in onError while handling exception", error);
         response = internalServerError();
       }
     }
 
     const inner = toInnerResponse(response);
-    if (innerRequest?.[_upgraded]) {
+    if (innerRequest?.[_upgraded])
+    {
       // We're done here as the connection has been upgraded during the callback and no longer requires servicing.
-      if (response !== UPGRADE_RESPONSE_SENTINEL) {
+      if (response !== UPGRADE_RESPONSE_SENTINEL)
+      {
         console.error("Upgrade response was not returned from callback");
         context.close();
       }
@@ -470,7 +510,8 @@ function mapToCallback(context, callback, onError) {
     }
 
     // Did everything shut down while we were waiting?
-    if (context.closed) {
+    if (context.closed)
+    {
       // We're shutting down, so this status shouldn't make it back to the client but "Service Unavailable" seems appropriate
       op_http_set_promise_complete(req, 503);
       innerRequest?.close();
@@ -479,10 +520,13 @@ function mapToCallback(context, callback, onError) {
 
     const status = inner.status;
     const headers = inner.headerList;
-    if (headers && headers.length > 0) {
-      if (headers.length == 1) {
+    if (headers && headers.length > 0)
+    {
+      if (headers.length == 1)
+      {
         op_http_set_response_header(req, headers[0][0], headers[0][1]);
-      } else {
+      } else
+      {
         op_http_set_response_headers(req, headers);
       }
     }
@@ -495,26 +539,33 @@ function mapToCallback(context, callback, onError) {
 function serve(arg1, arg2) {
   let options = undefined;
   let handler = undefined;
-  if (typeof arg1 === "function") {
+  if (typeof arg1 === "function")
+  {
     handler = arg1;
-  } else if (typeof arg2 === "function") {
+  } else if (typeof arg2 === "function")
+  {
     handler = arg2;
     options = arg1;
-  } else {
+  } else
+  {
     options = arg1;
   }
-  if (handler === undefined) {
-    if (options === undefined) {
+  if (handler === undefined)
+  {
+    if (options === undefined)
+    {
       throw new TypeError(
         "No handler was provided, so an options bag is mandatory.",
       );
     }
     handler = options.handler;
   }
-  if (typeof handler !== "function") {
+  if (typeof handler !== "function")
+  {
     throw new TypeError("A handler function must be provided.");
   }
-  if (options === undefined) {
+  if (options === undefined)
+  {
     options = {};
   }
 
@@ -526,7 +577,8 @@ function serve(arg1, arg2) {
     return internalServerError();
   };
 
-  if (wantsUnix) {
+  if (wantsUnix)
+  {
     const listener = listen({
       transport: "unix",
       path: options.path,
@@ -534,9 +586,11 @@ function serve(arg1, arg2) {
     });
     const path = listener.addr.path;
     return serveHttpOnListener(listener, signal, handler, onError, () => {
-      if (options.onListen) {
+      if (options.onListen)
+      {
         options.onListen({ path });
-      } else {
+      } else
+      {
         console.log(`Listening on ${path}`);
       }
     });
@@ -548,20 +602,24 @@ function serve(arg1, arg2) {
     reusePort: options.reusePort ?? false,
   };
 
-  if (options.certFile || options.keyFile) {
+  if (options.certFile || options.keyFile)
+  {
     throw new TypeError(
       "Unsupported 'certFile' / 'keyFile' options provided: use 'cert' / 'key' instead.",
     );
   }
-  if (options.alpnProtocols) {
+  if (options.alpnProtocols)
+  {
     throw new TypeError(
       "Unsupported 'alpnProtocols' option provided. 'h2' and 'http/1.1' are automatically supported.",
     );
   }
 
   let listener;
-  if (wantsHttps) {
-    if (!options.cert || !options.key) {
+  if (wantsHttps)
+  {
+    if (!options.cert || !options.key)
+    {
       throw new TypeError(
         "Both cert and key must be provided to enable HTTPS.",
       );
@@ -571,7 +629,8 @@ function serve(arg1, arg2) {
     listenOpts.alpnProtocols = ["h2", "http/1.1"];
     listener = listenTls(listenOpts);
     listenOpts.port = listener.addr.port;
-  } else {
+  } else
+  {
     listener = listen(listenOpts);
     listenOpts.port = listener.addr.port;
   }
@@ -585,9 +644,11 @@ function serve(arg1, arg2) {
       : listenOpts.hostname;
     const port = listenOpts.port;
 
-    if (options.onListen) {
+    if (options.onListen)
+    {
       options.onListen({ hostname, port });
-    } else {
+    } else
+    {
       console.log(`Listening on ${scheme}${hostname}:${port}/`);
     }
   };
@@ -644,36 +705,45 @@ function serveHttpOn(context, callback) {
   // Run the server
   const finished = (async () => {
     const rid = context.serverRid;
-    while (true) {
+    while (true)
+    {
       let req;
-      try {
+      try
+      {
         // Attempt to pull as many requests out of the queue as possible before awaiting. This API is
         // a synchronous, non-blocking API that returns u32::MAX if anything goes wrong.
-        while ((req = op_http_try_wait(rid)) !== -1) {
+        while ((req = op_http_try_wait(rid)) !== -1)
+        {
           PromisePrototypeCatch(callback(req), promiseErrorHandler);
         }
         currentPromise = op_http_wait(rid);
-        if (!ref) {
+        if (!ref)
+        {
           core.unrefOp(currentPromise[promiseIdSymbol]);
         }
         req = await currentPromise;
         currentPromise = null;
-      } catch (error) {
-        if (ObjectPrototypeIsPrototypeOf(BadResourcePrototype, error)) {
+      } catch (error)
+      {
+        if (ObjectPrototypeIsPrototypeOf(BadResourcePrototype, error))
+        {
           break;
         }
-        if (ObjectPrototypeIsPrototypeOf(InterruptedPrototype, error)) {
+        if (ObjectPrototypeIsPrototypeOf(InterruptedPrototype, error))
+        {
           break;
         }
         throw new Deno.errors.Http(error);
       }
-      if (req === -1) {
+      if (req === -1)
+      {
         break;
       }
       PromisePrototypeCatch(callback(req), promiseErrorHandler);
     }
 
-    if (!context.closing && !context.closed) {
+    if (!context.closing && !context.closed)
+    {
       context.closing = op_http_close(rid, false);
       context.close();
     }
@@ -686,7 +756,8 @@ function serveHttpOn(context, callback) {
   return {
     finished,
     async shutdown() {
-      if (!context.closing && !context.closed) {
+      if (!context.closing && !context.closed)
+      {
         // Shut this HTTP server down gracefully
         context.closing = op_http_close(context.serverRid, true);
       }
@@ -695,13 +766,15 @@ function serveHttpOn(context, callback) {
     },
     ref() {
       ref = true;
-      if (currentPromise) {
+      if (currentPromise)
+      {
         core.refOp(currentPromise[promiseIdSymbol]);
       }
     },
     unref() {
       ref = false;
-      if (currentPromise) {
+      if (currentPromise)
+      {
         core.unrefOp(currentPromise[promiseIdSymbol]);
       }
     },
